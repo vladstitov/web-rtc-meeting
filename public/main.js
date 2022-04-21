@@ -12,6 +12,9 @@ let dataChannel;
 let localMediaStream;
 let remoteId;
 const remoteMediaStream = new MediaStream();
+let myID;
+let clients;
+let mainID;
 socket.onopen = () => {
   console.log('socket::open');
  /// start();
@@ -24,6 +27,10 @@ socket.onmessage = async ({ data }) => {
       case 'start':
         console.log('start', jsonMessage.id);
         callButton.disabled = false;
+        myID = jsonMessage.id;
+        clients = jsonMessage.clients;
+        const main = clients.find(v => v.main)
+          if(main) mainID = main.id;
         document.getElementById('localId').innerHTML = jsonMessage.id;
         break;
       case 'offer':
@@ -40,6 +47,15 @@ socket.onmessage = async ({ data }) => {
         break;
       case 'iceCandidate':
         await peerConnection.addIceCandidate(jsonMessage.data.candidate);
+        break;
+
+      case 'send-offer':
+        sendOffer();
+        break;
+
+      case 'error-send-offer':
+
+console.log('error-send-offer', jsonMessage )
         break;
       default: console.warn('unknown action', jsonMessage.action);
     }
@@ -69,7 +85,7 @@ const start = async () => {
      localVideo.srcObject = localMediaStream;
     }// await getLocalMediaStream();
     console.log('localMediaStream ', localMediaStream);
-    sendSocketMessage('start');
+    sendSocketMessage('start', {main: isMain});
   } catch (error) {
     console.error('failed to start stream', error);
   }
@@ -81,6 +97,13 @@ const start = async () => {
   const screenTrack = mediaStream.getVideoTracks()[0];
 *
 * */
+
+async function sendOffer() {
+
+   const offer = await peerConnection.createOffer();
+   await peerConnection.setLocalDescription(offer);
+   sendSocketMessage('offer', { offer, remoteId });
+ }
 
 const call = async () => {
   try {

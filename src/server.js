@@ -47,11 +47,29 @@ wss.on('connection', (socket) => {
 }); 
 
 const handleJsonMessage = (socket, jsonMessage) => {
+  const data = jsonMessage.data;
   switch (jsonMessage.action) {
     case 'start':
       socket.id = Math.round(Math.random() * 100)  + '';
-      emitMessage(socket, { action: 'start', id: socket.id }); 
+      socket.main = data.main;
+      const clients = getClients().map((client => {return {id: client.id, main: client.main}}));
+      emitMessage(socket, { action: 'start', id:socket.id,  clients});
+      for(let str in wss.clients) {
+        const sock = wss.clients[str];
+        if(sock !== socket) emitMessage(socket, { action: 'connected', client_id: socket.id,  clients});
+      }
       break;
+    case 'send-offer':
+      const clients2 = getClients();
+      const mains = clients2.find(v => v.main);
+      if(mains.length !== 1) {
+        const out = mains.map(client => {return {id: client.id, main: client.main}})
+        emitMessage(socket, { action: 'error-send-offer', data: out });
+      } else {
+        const online = clients2.find(v => !v.main).map(client => {return {id: client.id, main: client.main}});
+        emitMessage(mains[0], { action: 'send-offer', data: online});
+      }
+      break
     default: 
       console.log('remote', jsonMessage.data.remoteId);
       if (!jsonMessage.data.remoteId) return;
@@ -78,8 +96,12 @@ const emitMessage = (socket, jsonMessage) => {
   }
 };
 
+
 const getSocketById = (socketId) =>
   Array.from(wss.clients).find((client => client.id === socketId));
+
+const getClients = () =>
+    Array.from(wss.clients);
 
 wsServer.listen(8888);
 console.log('app server listening on port 3000');
