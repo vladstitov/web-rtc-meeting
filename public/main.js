@@ -1,11 +1,9 @@
-const localVideo = document.getElementById('localVideo');
+ const localVideo = document.getElementById('localVideo');
 const remoteVideo = document.getElementById('remoteVideo');
 const callButton = document.getElementById('callButton');
 const hangupButton = document.getElementById('hangupButton');
 const screenShareButton = document.getElementById('screenShareButton');
-
 const isMain = window.location.hash
-
 const ar = window.location.host.split(':')
 
 const socket = new WebSocket('wss://'+ar[0]+':8888');
@@ -13,13 +11,11 @@ let peerConnection;
 let dataChannel;
 let localMediaStream;
 let remoteId;
-
 const remoteMediaStream = new MediaStream();
-
 socket.onopen = () => {
   console.log('socket::open');
+ /// start();
 };
-
 socket.onmessage = async ({ data }) => {
   try {
     const jsonMessage = JSON.parse(data);
@@ -68,13 +64,23 @@ const sendSocketMessage = (action, data) => {
 
 const start = async () => {
   try {
-    if(isMain) localMediaStream = await getLocalMediaStream();
+    if(isMain) {
+      localMediaStream = await getLocalScreenCaptureStream();
+     localVideo.srcObject = localMediaStream;
+    }// await getLocalMediaStream();
     console.log('localMediaStream ', localMediaStream);
     sendSocketMessage('start');
   } catch (error) {
     console.error('failed to start stream', error);
   }
 };
+
+/*
+*  const mediaStream = await getLocalScreenCaptureStream();
+
+  const screenTrack = mediaStream.getVideoTracks()[0];
+*
+* */
 
 const call = async () => {
   try {

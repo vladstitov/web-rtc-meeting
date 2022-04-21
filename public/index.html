@@ -2,14 +2,11 @@
 <html lang="en">
   <head>
     <meta charset="utf-8"/>
-    <title>Simple P2P example</title>
   </head>
-
   <body>
-    <h1>Simple P2P Example</h1>
+  <button onclick="start();">Start</button>
+   <b>Local Id: <span id="localId"/></b><br/>
     <hr />
-    <button onclick="start();">Start</button><br/>
-    <b>Local Id: <span id="localId"/></b><br/>
     <input type="text" id="callId" placeholder="Enter remote peer id"/>
     <button id="callButton" onclick="call();" disabled>Call</button>
     <button id="hangupButton" onclick="hangup();" disabled>Hang Up</button>
@@ -20,10 +17,10 @@
     <hr />
 
     <h3>Local Video</h3>
-    <video id="localVideo" width="640" height="480" autoplay muted></video>
+   <video id="localVideo" width="240" height="320" autoplay muted></video>
 
     <h3>Remote Video</h3>
-    <video id="remoteVideo" width="640" height="480" autoplay></video>
+    <video id="remoteVideo" width="1920" height="1080" autoplay></video>
 
     <script src="./main.js"></script>
   </body>
