@@ -59,15 +59,15 @@ const handleJsonMessage = (socket, jsonMessage) => {
         if(sock !== socket) emitMessage(socket, { action: 'connected', client_id: socket.id,  clients});
       }
       break;
-    case 'send-offer':
+    case 'ask-offer':
       const clients2 = getClients();
-      const mains = clients2.find(v => v.main);
-      if(mains.length !== 1) {
+      const mains = clients2.filter(v => !!v.main);
+     if(mains.length !== 1) {
         const out = mains.map(client => {return {id: client.id, main: client.main}})
         emitMessage(socket, { action: 'error-send-offer', data: out });
       } else {
-        const online = clients2.find(v => !v.main).map(client => {return {id: client.id, main: client.main}});
-        emitMessage(mains[0], { action: 'send-offer', data: online});
+        const to = jsonMessage.data.to;
+        emitMessage(mains[0], { action: 'send-offer', to});
       }
       break
     default: 
@@ -100,8 +100,7 @@ const emitMessage = (socket, jsonMessage) => {
 const getSocketById = (socketId) =>
   Array.from(wss.clients).find((client => client.id === socketId));
 
-const getClients = () =>
-    Array.from(wss.clients);
+const getClients = () => Array.from(wss.clients);
 
 wsServer.listen(8888);
 console.log('app server listening on port 3000');

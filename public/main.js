@@ -48,11 +48,12 @@ socket.onmessage = async ({ data }) => {
       case 'iceCandidate':
         await peerConnection.addIceCandidate(jsonMessage.data.candidate);
         break;
-
       case 'send-offer':
-        sendOffer();
+        const to = jsonMessage.to;
+        remoteId = to;
+        console.log(remoteId);
+        sendOffer(to);
         break;
-
       case 'error-send-offer':
 
 console.log('error-send-offer', jsonMessage )
@@ -98,11 +99,20 @@ const start = async () => {
 *
 * */
 
-async function sendOffer() {
+ function askOffer() {
+   if(myID)  sendSocketMessage('ask-offer', { to:myID });
+   else console.log(' no my id ')
+ }
+async function sendOffer(to) {
+   if(!peerConnection) {
+     await initializePeerConnection(localMediaStream.getTracks());
+     initializeDataChannel();
+   }
+
 
    const offer = await peerConnection.createOffer();
    await peerConnection.setLocalDescription(offer);
-   sendSocketMessage('offer', { offer, remoteId });
+   sendSocketMessage('offer', { offer, remoteId: to});
  }
 
 const call = async () => {
