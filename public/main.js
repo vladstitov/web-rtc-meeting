@@ -28,6 +28,7 @@ socket.onmessage = async ({ data }) => {
         console.log('start', jsonMessage.id);
         callButton.disabled = false;
         myID = jsonMessage.id;
+
         clients = jsonMessage.clients;
         const main = clients.find(v => v.main)
           if(main) mainID = main.id;
