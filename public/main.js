@@ -4,16 +4,16 @@ const callButton = document.getElementById('callButton');
 const hangupButton = document.getElementById('hangupButton');
 const screenShareButton = document.getElementById('screenShareButton');
 
+const isMain = window.location.hash
 
 const ar = window.location.host.split(':')
 
 const socket = new WebSocket('wss://'+ar[0]+':8888');
-
-
 let peerConnection;
 let dataChannel;
 let localMediaStream;
 let remoteId;
+
 const remoteMediaStream = new MediaStream();
 
 socket.onopen = () => {
@@ -33,13 +33,10 @@ socket.onmessage = async ({ data }) => {
       case 'offer':
         remoteId = jsonMessage.data.remoteId;
         delete jsonMessage.data.remoteId;
-
-        await initializePeerConnection(localMediaStream.getTracks());
+        await initializePeerConnection(localMediaStream?localMediaStream.getTracks(): null);
         await peerConnection.setRemoteDescription(new RTCSessionDescription(jsonMessage.data.offer));
-
         const answer = await peerConnection.createAnswer();
         await peerConnection.setLocalDescription(answer);
-
         sendSocketMessage('answer', { remoteId, answer }); 
         break;
       case 'answer':
@@ -71,7 +68,7 @@ const sendSocketMessage = (action, data) => {
 
 const start = async () => {
   try {
-    localMediaStream = await getLocalMediaStream();
+    if(isMain) localMediaStream = await getLocalMediaStream();
     console.log('localMediaStream ', localMediaStream);
     sendSocketMessage('start');
   } catch (error) {
@@ -92,6 +89,7 @@ const call = async () => {
     console.log('call: ', remoteId);
 
     await initializePeerConnection(localMediaStream.getTracks());
+
     initializeDataChannel();
 
     const offer = await peerConnection.createOffer();
@@ -143,10 +141,10 @@ const initializePeerConnection = async (mediaTracks) => {
 
   peerConnection.onicecandidate = ({ candidate }) => {
     if (!candidate) return;
-
-    console.log('peerConnection::icecandidate', candidate);
-    console.log('remote', remoteId);
-    sendSocketMessage('iceCandidate', { remoteId, candidate });
+    if(isMain) {
+      console.log('on icecandidate sending to', remoteId);
+      sendSocketMessage('iceCandidate', { remoteId, candidate });
+    }
   };
 
   peerConnection.oniceconnectionstatechange = () => {
@@ -171,9 +169,12 @@ const initializePeerConnection = async (mediaTracks) => {
     initializeDataChannelListeners();
   };
 
-  for (const track of mediaTracks) {
-    peerConnection.addTrack(track);
+  if(mediaTracks) {
+    for (const track of mediaTracks) {
+      peerConnection.addTrack(track);
+    }
   }
+
 
   hangupButton.disabled = false;
   screenShareButton.disabled = false;

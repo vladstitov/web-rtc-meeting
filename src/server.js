@@ -49,7 +49,7 @@ wss.on('connection', (socket) => {
 const handleJsonMessage = (socket, jsonMessage) => {
   switch (jsonMessage.action) {
     case 'start':
-      socket.id = nanoid();
+      socket.id = Math.round(Math.random() * 100)  + '';
       emitMessage(socket, { action: 'start', id: socket.id }); 
       break;
     default: 
