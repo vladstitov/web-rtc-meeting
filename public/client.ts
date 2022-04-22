@@ -9,7 +9,7 @@ namespace client1 {
     let peerConnection;
     let dataChannel;
 
-    let remoteId;
+    let sharingID;
 
     let myID;
     let clients;
@@ -31,13 +31,12 @@ namespace client1 {
                     console.log(clients);
                     break;
                 case 'offer':
-                    remoteId = jsonMessage.data.remoteId;
-                    delete jsonMessage.data.remoteId;
+                    sharingID = jsonMessage.data.from;
                     await initializePeerConnection(null);
                     await peerConnection.setRemoteDescription(new RTCSessionDescription(jsonMessage.data.offer));
                     const answer = await peerConnection.createAnswer();
                     await peerConnection.setLocalDescription(answer);
-                    sendSocketMessage('answer', {remoteId, answer});
+                    sendSocketMessage('answer', {to: sharingID, answer});
                     break;
                 case 'answer':
                     await peerConnection.setRemoteDescription(new RTCSessionDescription(jsonMessage.data.answer));
@@ -71,33 +70,24 @@ namespace client1 {
         socket.send(JSON.stringify(message));
     };
 
-
-
-    /*
-    *  const mediaStream = await getLocalScreenCaptureStream();
-
-      const screenTrack = mediaStream.getVideoTracks()[0];
-    *
-    * */
-
     export function askOffer() {
-        if (myID) sendSocketMessage('ask-offer', {to: myID});
+        if (myID) sendSocketMessage('ask-offer', null);
         else console.log(' no my id ')
     }
 
 
     const hangup = () => socket.close();
 
-    export const stop = () => {
-
+    export function stop (){
         for (const sender of peerConnection.getSenders()) {
             sender.track.stop();
         }
-        sendSocketMessage('stop', {to: remoteId});
+        sendSocketMessage('stop', {to: sharingID});
         dataChannel.close();
         peerConnection.close();
+        peerConnection = null;
         // @ts-ignore
-        remoteVideo.srcObject = undefined;
+       /// remoteVideo.srcObject = undefined;
     };
 
     const initializePeerConnection = async (mediaTracks) => {
@@ -107,10 +97,6 @@ namespace client1 {
         peerConnection.onicecandidate = ({candidate}) => {
             if (!candidate) return;
             console.log('on icecandidate ', candidate);
-            /* if(isMain) {
-               console.log('on icecandidate sending to', remoteId);
-               sendSocketMessage('iceCandidate', { remoteId, candidate });
-             }*/
         };
 
         peerConnection.oniceconnectionstatechange = () => {

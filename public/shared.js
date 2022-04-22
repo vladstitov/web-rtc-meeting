@@ -6,7 +6,7 @@ var shared1;
     let peerConnection;
     let dataChannel;
     let localMediaStream;
-    let remoteId;
+    let clientId;
     let myID;
     let clients;
     socket.onopen = () => {
@@ -30,13 +30,19 @@ var shared1;
                     console.log('sharing registered');
                     break;
                 case 'offer':
-                    remoteId = jsonMessage.data.remoteId;
+                    clientId = jsonMessage.data.from;
                     delete jsonMessage.data.remoteId;
-                    await initializePeerConnection(localMediaStream ? localMediaStream.getTracks() : null);
+                    await initializePeerConnection();
+                    const mediaTracks = localMediaStream.getTracks();
+                    if (mediaTracks) {
+                        for (const track of mediaTracks) {
+                            peerConnection.addTrack(track);
+                        }
+                    }
                     await peerConnection.setRemoteDescription(new RTCSessionDescription(jsonMessage.data.offer));
                     const answer = await peerConnection.createAnswer();
                     await peerConnection.setLocalDescription(answer);
-                    sendSocketMessage('answer', { remoteId, answer });
+                    sendSocketMessage('answer', { to: clientId, answer });
                     break;
                 case 'answer':
                     await peerConnection.setRemoteDescription(new RTCSessionDescription(jsonMessage.data.answer));
@@ -45,9 +51,9 @@ var shared1;
                     await peerConnection.addIceCandidate(jsonMessage.data.candidate);
                     break;
                 case 'send-offer':
-                    const to = jsonMessage.to;
-                    remoteId = to;
-                    console.log(remoteId);
+                    const to = jsonMessage.from;
+                    clientId = to;
+                    console.log(clientId);
                     sendOffer(to);
                     break;
                 case 'error-send-offer':
@@ -76,13 +82,23 @@ var shared1;
         socket.send(JSON.stringify(message));
     };
     async function sendOffer(to) {
+        if (!to) {
+            console.log(' no to');
+            return;
+        }
         if (!peerConnection) {
-            await initializePeerConnection(localMediaStream.getTracks());
+            await initializePeerConnection();
+            const mediaTracks = localMediaStream.getTracks();
+            if (mediaTracks) {
+                for (const track of mediaTracks) {
+                    peerConnection.addTrack(track);
+                }
+            }
             initializeDataChannel();
         }
         const offer = await peerConnection.createOffer();
         await peerConnection.setLocalDescription(offer);
-        sendSocketMessage('offer', { offer, remoteId: to });
+        sendSocketMessage('offer', { offer, to });
     }
     const hangup = () => socket.close();
     function stop() {
@@ -102,14 +118,14 @@ var shared1;
         peerConnection.close();
         peerConnection = null;
     }
-    const initializePeerConnection = async (mediaTracks) => {
+    const initializePeerConnection = async () => {
         const config = { iceServers: [{ urls: ['stun:stun1.l.google.com:19302'] }] };
         peerConnection = new RTCPeerConnection(config);
         peerConnection.onicecandidate = ({ candidate }) => {
             if (!candidate)
                 return;
-            console.log('on icecandidate sending to', remoteId);
-            sendSocketMessage('iceCandidate', { remoteId, candidate });
+            console.log('on icecandidate sending to', clientId);
+            sendSocketMessage('iceCandidate', { to: clientId, candidate });
         };
         peerConnection.oniceconnectionstatechange = () => {
             console.log('peerConnection::iceconnectionstatechange newState=', peerConnection.iceConnectionState);
@@ -130,11 +146,6 @@ var shared1;
             dataChannel = channel;
             initializeDataChannelListeners();
         };
-        if (mediaTracks) {
-            for (const track of mediaTracks) {
-                peerConnection.addTrack(track);
-            }
-        }
     };
     const initializeDataChannel = () => {
         const config = { ordered: true };

@@ -6,7 +6,7 @@ var client1;
     const socket = new WebSocket('wss://' + ar[0] + ':8888');
     let peerConnection;
     let dataChannel;
-    let remoteId;
+    let sharingID;
     let myID;
     let clients;
     socket.onopen = () => {
@@ -26,13 +26,12 @@ var client1;
                     console.log(clients);
                     break;
                 case 'offer':
-                    remoteId = jsonMessage.data.remoteId;
-                    delete jsonMessage.data.remoteId;
+                    sharingID = jsonMessage.data.from;
                     await initializePeerConnection(null);
                     await peerConnection.setRemoteDescription(new RTCSessionDescription(jsonMessage.data.offer));
                     const answer = await peerConnection.createAnswer();
                     await peerConnection.setLocalDescription(answer);
-                    sendSocketMessage('answer', { remoteId, answer });
+                    sendSocketMessage('answer', { to: sharingID, answer });
                     break;
                 case 'answer':
                     await peerConnection.setRemoteDescription(new RTCSessionDescription(jsonMessage.data.answer));
@@ -56,36 +55,33 @@ var client1;
     };
     socket.onclose = () => {
         console.log('socket::close');
-        client1.stop();
+        stop();
     };
     const sendSocketMessage = (action, data) => {
         const message = { action, data };
         socket.send(JSON.stringify(message));
     };
-    /*
-    *  const mediaStream = await getLocalScreenCaptureStream();
-
-      const screenTrack = mediaStream.getVideoTracks()[0];
-    *
-    * */
     function askOffer() {
         if (myID)
-            sendSocketMessage('ask-offer', { to: myID });
+            sendSocketMessage('ask-offer', null);
         else
             console.log(' no my id ');
     }
     client1.askOffer = askOffer;
     const hangup = () => socket.close();
-    client1.stop = () => {
+    function stop() {
         for (const sender of peerConnection.getSenders()) {
             sender.track.stop();
         }
-        sendSocketMessage('stop', { to: remoteId });
+        sendSocketMessage('stop', { to: sharingID });
         dataChannel.close();
         peerConnection.close();
+        peerConnection = null;
         // @ts-ignore
-        remoteVideo.srcObject = undefined;
-    };
+        /// remoteVideo.srcObject = undefined;
+    }
+    client1.stop = stop;
+    ;
     const initializePeerConnection = async (mediaTracks) => {
         const config = { iceServers: [{ urls: ['stun:stun1.l.google.com:19302'] }] };
         peerConnection = new RTCPeerConnection(config);
@@ -93,10 +89,6 @@ var client1;
             if (!candidate)
                 return;
             console.log('on icecandidate ', candidate);
-            /* if(isMain) {
-               console.log('on icecandidate sending to', remoteId);
-               sendSocketMessage('iceCandidate', { remoteId, candidate });
-             }*/
         };
         peerConnection.oniceconnectionstatechange = () => {
             console.log('peerConnection::iceconnectionstatechange newState=', peerConnection.iceConnectionState);
