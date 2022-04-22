@@ -1,17 +1,17 @@
 var client1;
 (function (client1) {
     const remoteVideo = document.getElementById('remoteVideo');
+    const remoteMediaStream = new MediaStream();
     const ar = window.location.host.split(':');
     const socket = new WebSocket('wss://' + ar[0] + ':8888');
     let peerConnection;
     let dataChannel;
     let remoteId;
-    const remoteMediaStream = new MediaStream();
     let myID;
     let clients;
     socket.onopen = () => {
         console.log('socket::open');
-        /// start();
+        sendSocketMessage('start', { name: 'client' });
     };
     socket.onmessage = async ({ data }) => {
         try {
@@ -23,6 +23,7 @@ var client1;
                     myID = jsonMessage.id;
                     clients = jsonMessage.clients;
                     document.getElementById('localId').innerHTML = jsonMessage.id;
+                    console.log(clients);
                     break;
                 case 'offer':
                     remoteId = jsonMessage.data.remoteId;
@@ -55,14 +56,11 @@ var client1;
     };
     socket.onclose = () => {
         console.log('socket::close');
-        stop();
+        client1.stop();
     };
     const sendSocketMessage = (action, data) => {
         const message = { action, data };
         socket.send(JSON.stringify(message));
-    };
-    client1.start = async () => {
-        sendSocketMessage('start', { name: 'Shared' });
     };
     /*
     *  const mediaStream = await getLocalScreenCaptureStream();
@@ -78,15 +76,11 @@ var client1;
     }
     client1.askOffer = askOffer;
     const hangup = () => socket.close();
-    const stop = () => {
-        // @ts-ignore
-        if (!localVideo.srcObject)
-            return;
-        // @ts-ignore
-        for (const track of localVideo.srcObject.getTracks()) {
-            console.log('stop track', track);
-            track.stop();
-        }
+    client1.stop = () => {
+        /*   for (const track of localVideo.srcObject.getTracks()) {
+               console.log('stop track', track);
+               track.stop();
+           }*/
         for (const sender of peerConnection.getSenders()) {
             sender.track.stop();
         }
@@ -94,18 +88,6 @@ var client1;
         peerConnection.close();
         // @ts-ignore
         remoteVideo.srcObject = undefined;
-    };
-    const getLocalMediaStream = async () => {
-        try {
-            const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
-            console.log('got local media stream');
-            // @ts-ignore
-            localVideo.srcObject = mediaStream;
-            return mediaStream;
-        }
-        catch (error) {
-            console.error('failed to get local media stream', error);
-        }
     };
     const initializePeerConnection = async (mediaTracks) => {
         const config = { iceServers: [{ urls: ['stun:stun1.l.google.com:19302'] }] };

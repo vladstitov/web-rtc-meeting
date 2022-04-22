@@ -10,8 +10,9 @@ namespace shared1 {
     let clients;
 
     socket.onopen = () => {
+        sendSocketMessage('start', {name: 'Shared'});
         console.log('socket::open');
-        /// start();
+       // setTimeout(() => start(), 1000);
     };
     socket.onmessage = async ({data}) => {
         try {
@@ -24,6 +25,9 @@ namespace shared1 {
                     clients = jsonMessage.clients;
                     sendSocketMessage('sharing');
                     document.getElementById('localId').innerHTML = jsonMessage.id;
+                    break;
+                case 'sharing':
+                    console.log('sharing registered');
                     break;
                 case 'offer':
                     remoteId = jsonMessage.data.remoteId;
@@ -47,9 +51,11 @@ namespace shared1 {
                     sendOffer(to);
                     break;
                 case 'error-send-offer':
-
                     console.log('error-send-offer', jsonMessage)
                     break;
+                case 'stop' :
+                    stop();
+                    break
                 default:
                     console.warn('unknown action', jsonMessage.action);
             }
@@ -72,17 +78,6 @@ namespace shared1 {
         socket.send(JSON.stringify(message));
     };
 
-   export const start = async () => {
-        try {
-            localMediaStream = await getLocalMediaStream();// await getLocalScreenCaptureStream();
-                // @ts-ignore
-            localVideo.srcObject = localMediaStream;
-            sendSocketMessage('start', {name: 'Shared'});
-
-        } catch (error) {
-            console.error('failed to start stream', error);
-        }
-    };
     async function sendOffer(to) {
         if (!peerConnection) {
             await initializePeerConnection(localMediaStream.getTracks());
@@ -94,39 +89,28 @@ namespace shared1 {
     }
 
     const hangup = () => socket.close();
-    const stop = () => {
-        // @ts-ignore
 
-
+    function stop(){
         // @ts-ignore
-        if(localVideo.srcObject) {
+     /*   if(localVideo.srcObject) {
             // @ts-ignore
             for (const track of localVideo.srcObject.getTracks()) {
                 console.log('stop track', track);
                 track.stop();
             }
         }
-
+*/
         for (const sender of peerConnection.getSenders()) {
             sender.track.stop();
         }
 
         dataChannel.close();
         peerConnection.close();
-    };
+        peerConnection = null;
+    }
 
-    const getLocalMediaStream = async () => {
-        try {
-            const mediaStream = await navigator.mediaDevices.getUserMedia({audio: false, video: true});
-            console.log('got local media stream');
-            // @ts-ignore
-            localVideo.srcObject = mediaStream;
 
-            return mediaStream;
-        } catch (error) {
-            console.error('failed to get local media stream', error);
-        }
-    };
+
 
     const initializePeerConnection = async (mediaTracks) => {
         const config = {iceServers: [{urls: ['stun:stun1.l.google.com:19302']}]};
@@ -185,16 +169,27 @@ namespace shared1 {
         };
     };
 
-    const shareScreen = async () => {
+    export async function shareVideo() {
+        try {
+            localMediaStream = await navigator.mediaDevices.getUserMedia({audio: false, video: true});
+            console.log('got local media stream');
+            // @ts-ignore
+            localVideo.srcObject = localMediaStream;
+
+        } catch (error) {
+            console.error('failed to get local media stream', error);
+        }
+    }
+
+   export const replaceTrackWithScreen = async () => {
         const mediaStream = await getLocalScreenCaptureStream();
-
         const screenTrack = mediaStream.getVideoTracks()[0];
-
         if (screenTrack) {
             console.log('replace camera track with screen track');
             replaceTrack(screenTrack);
         }
     };
+
 
     const getLocalScreenCaptureStream = async () => {
         try {

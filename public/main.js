@@ -236,7 +236,13 @@ const initializeDataChannelListeners = () => {
   };
 };
 
-const shareScreen = async () => {
+export async function shareScreen() {
+  localMediaStream = await getLocalMediaStream();// await getLocalScreenCaptureStream();
+  // @ts-ignore
+  localVideo.srcObject = localMediaStream;
+}
+
+const switchTrack = async () => {
   const mediaStream = await getLocalScreenCaptureStream();
 
   const screenTrack = mediaStream.getVideoTracks()[0];

@@ -2,7 +2,7 @@ namespace client1 {
 
 
     const remoteVideo = document.getElementById('remoteVideo');
-
+    const remoteMediaStream = new MediaStream();
 
     const ar = window.location.host.split(':')
     const socket = new WebSocket('wss://' + ar[0] + ':8888');
@@ -10,13 +10,13 @@ namespace client1 {
     let dataChannel;
 
     let remoteId;
-    const remoteMediaStream = new MediaStream();
+
     let myID;
     let clients;
 
     socket.onopen = () => {
         console.log('socket::open');
-        /// start();
+        sendSocketMessage('start', {name: 'client'});
     };
     socket.onmessage = async ({data}) => {
         try {
@@ -28,6 +28,7 @@ namespace client1 {
                     myID = jsonMessage.id;
                     clients = jsonMessage.clients;
                     document.getElementById('localId').innerHTML = jsonMessage.id;
+                    console.log(clients);
                     break;
                 case 'offer':
                     remoteId = jsonMessage.data.remoteId;
@@ -70,9 +71,7 @@ namespace client1 {
         socket.send(JSON.stringify(message));
     };
 
-    export const start = async () => {
-        sendSocketMessage('start', {name: 'Shared'});
-    };
+
 
     /*
     *  const mediaStream = await getLocalScreenCaptureStream();
@@ -89,14 +88,12 @@ namespace client1 {
 
     const hangup = () => socket.close();
 
-    const stop = () => {
-        // @ts-ignore
-        if (!localVideo.srcObject) return;
-        // @ts-ignore
-        for (const track of localVideo.srcObject.getTracks()) {
+    export const stop = () => {
+
+     /*   for (const track of localVideo.srcObject.getTracks()) {
             console.log('stop track', track);
             track.stop();
-        }
+        }*/
 
         for (const sender of peerConnection.getSenders()) {
             sender.track.stop();
@@ -106,19 +103,6 @@ namespace client1 {
         peerConnection.close();
         // @ts-ignore
         remoteVideo.srcObject = undefined;
-    };
-
-    const getLocalMediaStream = async () => {
-        try {
-            const mediaStream = await navigator.mediaDevices.getUserMedia({audio: false, video: true});
-            console.log('got local media stream');
-            // @ts-ignore
-            localVideo.srcObject = mediaStream;
-
-            return mediaStream;
-        } catch (error) {
-            console.error('failed to get local media stream', error);
-        }
     };
 
     const initializePeerConnection = async (mediaTracks) => {

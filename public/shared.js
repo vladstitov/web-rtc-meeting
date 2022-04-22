@@ -10,8 +10,9 @@ var shared1;
     let myID;
     let clients;
     socket.onopen = () => {
+        sendSocketMessage('start', { name: 'Shared' });
         console.log('socket::open');
-        /// start();
+        // setTimeout(() => start(), 1000);
     };
     socket.onmessage = async ({ data }) => {
         try {
@@ -24,6 +25,9 @@ var shared1;
                     clients = jsonMessage.clients;
                     sendSocketMessage('sharing');
                     document.getElementById('localId').innerHTML = jsonMessage.id;
+                    break;
+                case 'sharing':
+                    console.log('sharing registered');
                     break;
                 case 'offer':
                     remoteId = jsonMessage.data.remoteId;
@@ -49,6 +53,9 @@ var shared1;
                 case 'error-send-offer':
                     console.log('error-send-offer', jsonMessage);
                     break;
+                case 'stop':
+                    stop();
+                    break;
                 default:
                     console.warn('unknown action', jsonMessage.action);
             }
@@ -68,17 +75,6 @@ var shared1;
         const message = { action, data };
         socket.send(JSON.stringify(message));
     };
-    shared1.start = async () => {
-        try {
-            localMediaStream = await getLocalMediaStream(); // await getLocalScreenCaptureStream();
-            // @ts-ignore
-            localVideo.srcObject = localMediaStream;
-            sendSocketMessage('start', { name: 'Shared' });
-        }
-        catch (error) {
-            console.error('failed to start stream', error);
-        }
-    };
     async function sendOffer(to) {
         if (!peerConnection) {
             await initializePeerConnection(localMediaStream.getTracks());
@@ -89,34 +85,23 @@ var shared1;
         sendSocketMessage('offer', { offer, remoteId: to });
     }
     const hangup = () => socket.close();
-    const stop = () => {
+    function stop() {
         // @ts-ignore
-        // @ts-ignore
-        if (localVideo.srcObject) {
-            // @ts-ignore
-            for (const track of localVideo.srcObject.getTracks()) {
-                console.log('stop track', track);
-                track.stop();
-            }
-        }
+        /*   if(localVideo.srcObject) {
+               // @ts-ignore
+               for (const track of localVideo.srcObject.getTracks()) {
+                   console.log('stop track', track);
+                   track.stop();
+               }
+           }
+   */
         for (const sender of peerConnection.getSenders()) {
             sender.track.stop();
         }
         dataChannel.close();
         peerConnection.close();
-    };
-    const getLocalMediaStream = async () => {
-        try {
-            const mediaStream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
-            console.log('got local media stream');
-            // @ts-ignore
-            localVideo.srcObject = mediaStream;
-            return mediaStream;
-        }
-        catch (error) {
-            console.error('failed to get local media stream', error);
-        }
-    };
+        peerConnection = null;
+    }
     const initializePeerConnection = async (mediaTracks) => {
         const config = { iceServers: [{ urls: ['stun:stun1.l.google.com:19302'] }] };
         peerConnection = new RTCPeerConnection(config);
@@ -164,7 +149,19 @@ var shared1;
             console.log('dataChannel data', data);
         };
     };
-    const shareScreen = async () => {
+    async function shareVideo() {
+        try {
+            localMediaStream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
+            console.log('got local media stream');
+            // @ts-ignore
+            localVideo.srcObject = localMediaStream;
+        }
+        catch (error) {
+            console.error('failed to get local media stream', error);
+        }
+    }
+    shared1.shareVideo = shareVideo;
+    shared1.replaceTrackWithScreen = async () => {
         const mediaStream = await getLocalScreenCaptureStream();
         const screenTrack = mediaStream.getVideoTracks()[0];
         if (screenTrack) {
