@@ -8,48 +8,35 @@ namespace shared1 {
     let clientId;
     let myID;
     let clients;
-
     socket.onopen = () => {
-        sendSocketMessage('start', {name: 'Shared'});
+        sendSocketMessage('start', null,{name: 'Shared'});
         console.log('socket::open');
-       // setTimeout(() => start(), 1000);
     };
-    socket.onmessage = async ({data}) => {
+    socket.onmessage = async (evt:{data}) => {
         try {
-            const jsonMessage = JSON.parse(data);
-            console.log('message', jsonMessage);
-            switch (jsonMessage.action) {
+            const jsonMessage: {from: string, action: string, to: string, data: any} = JSON.parse(evt.data);
+             const data = jsonMessage.data;
+             const from = jsonMessage.from;
+             const to = jsonMessage.to;
+             const action = jsonMessage.action
+            console.log('action: ' +  action +  ' to '+ to + ' from:' + from +' ');
+
+            switch (action) {
                 case 'start':
-                    console.log('start', jsonMessage.id);
-                    myID = jsonMessage.id;
-                    clients = jsonMessage.clients;
-                    sendSocketMessage('sharing');
-                    document.getElementById('localId').innerHTML = jsonMessage.id;
+                    console.log('start', data.id);
+                    myID = data.id;
+                    clients = data.clients;
+                    sendSocketMessage(null,'sharing');
+                    document.getElementById('localId').innerHTML = data.id;
                     break;
                 case 'sharing':
                     console.log('sharing registered');
                     break;
-                case 'offer':
-                    clientId = jsonMessage.data.from;
-                    delete jsonMessage.data.remoteId;
-                    await initializePeerConnection();
-                    const mediaTracks = localMediaStream.getTracks()
-                    if (mediaTracks) {
-                        for (const track of mediaTracks) {
-                            peerConnection.addTrack(track);
-                        }
-                    }
-
-                    await peerConnection.setRemoteDescription(new RTCSessionDescription(jsonMessage.data.offer));
-                    const answer = await peerConnection.createAnswer();
-                    await peerConnection.setLocalDescription(answer);
-                    sendSocketMessage('answer', {to: clientId, answer});
-                    break;
                 case 'answer':
-                    await peerConnection.setRemoteDescription(new RTCSessionDescription(jsonMessage.data.answer));
+                    await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
                     break;
                 case 'iceCandidate':
-                    await peerConnection.addIceCandidate(jsonMessage.data.candidate);
+                    await peerConnection.addIceCandidate(data.candidate);
                     break;
                 case 'send-offer':
                     const to = jsonMessage.from;
@@ -80,8 +67,8 @@ namespace shared1 {
         stop();
     };
 
-    const sendSocketMessage = (action, data?) => {
-        const message = {action, data};
+    function sendSocketMessage (action, to: string, data?){
+        const message = {action, data, to};
         socket.send(JSON.stringify(message));
     };
 
@@ -103,24 +90,16 @@ namespace shared1 {
         }
         const offer = await peerConnection.createOffer();
         await peerConnection.setLocalDescription(offer);
-        sendSocketMessage('offer', {offer, to});
+        sendSocketMessage('offer', to,{offer});
     }
 
 
     const hangup = () => socket.close();
 
     function stop(){
-        // @ts-ignore
-     /*   if(localVideo.srcObject) {
-            // @ts-ignore
-            for (const track of localVideo.srcObject.getTracks()) {
-                console.log('stop track', track);
-                track.stop();
-            }
-        }
-*/
         for (const sender of peerConnection.getSenders()) {
-            sender.track.stop();
+            console.log(sender.track);
+           // sender.track.stop();
         }
         dataChannel.close();
         peerConnection.close();
@@ -137,7 +116,7 @@ namespace shared1 {
         peerConnection.onicecandidate = ({candidate}) => {
             if (!candidate) return;
             console.log('on icecandidate sending to', clientId);
-            sendSocketMessage('iceCandidate', {to:clientId, candidate});
+            sendSocketMessage('iceCandidate', clientId, {candidate});
         }
 
         peerConnection.oniceconnectionstatechange = () => {
@@ -183,10 +162,11 @@ namespace shared1 {
 
     export async function shareVideo() {
         try {
-            localMediaStream = await navigator.mediaDevices.getUserMedia({audio: false, video: true});
+            localMediaStream = await getLocalScreenCaptureStream(); // navigator.mediaDevices.getUserMedia({audio: false, video: true});
             console.log('got local media stream');
             // @ts-ignore
             localVideo.srcObject = localMediaStream;
+            sendSocketMessage('sharing', null, null);
 
         } catch (error) {
             console.error('failed to get local media stream', error);
@@ -202,18 +182,19 @@ namespace shared1 {
         }
     };
 
-
-    const getLocalScreenCaptureStream = async () => {
+    async function getLocalScreenCaptureStream (){
+        let  screenCaptureStream;
         try {
             const constraints = {video: {cursor: 'always'}, audio: false};
 
             // @ts-ignore
-            const screenCaptureStream = await navigator.mediaDevices.getDisplayMedia(constraints);
+            screenCaptureStream = await navigator.mediaDevices.getDisplayMedia(constraints);
 
-            return screenCaptureStream;
+
         } catch (error) {
             console.error('failed to get local screen', error);
         }
+        return screenCaptureStream;
     };
 
     const replaceTrack = (newTrack) => {

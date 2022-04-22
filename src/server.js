@@ -48,15 +48,18 @@ wss.on('connection', (socket) => {
 
 const handleJsonMessage = (socket, jsonMessage) => {
   const data = jsonMessage.data;
-  console.log('remote to:', jsonMessage.data.to + ' from:' +  socket.id);
-  switch (jsonMessage.action) {
+  const action = jsonMessage.action;
+  console.log(action + ' to:', jsonMessage.to + ' from:' +  socket.id);
+  const to = jsonMessage.to;
+
+  switch (action) {
     case 'start':
-      socket.id = Math.round(Math.random() * 100)  + '';
+      socket.id = Math.round(Math.random() * 10000)  + '';
       const clients = getClients().map((client => {return {id: client.id, sharing: client.sharing}}));
-      emitMessage(socket, { action: 'start', id: socket.id,  clients});
+      emitMessage(socket, { action: 'start',  data:{id: socket.id,  clients}});
       for(let str in wss.clients) {
         const sock = wss.clients[str];
-        if(sock !== socket) emitMessage(socket, { action: 'clients',  clients});
+        if(sock !== socket) emitMessage(socket, { action: 'clients',  data:{clients}});
       }
       break;
     case 'sharing':
@@ -67,16 +70,19 @@ const handleJsonMessage = (socket, jsonMessage) => {
       break
     default: 
 
-      if (!jsonMessage.data.to) return;
-      const remotePeerSocket = getSocketById(jsonMessage.data.to);
+      if (!to) {
+        console.log(' to??????')
+        return;
+      }
+      const remotePeerSocket = getSocketById(to);
       if (!remotePeerSocket) {
-        return console.log('failed to find remote socket with id', jsonMessage.data.to);
+        return console.log('failed to find remote socket with id', to);
       }
 
      /* if (jsonMessage.action !== 'offer') {
         delete jsonMessage.data.remoteId;
       } else {*/
-        jsonMessage.data.from = socket.id;
+        jsonMessage.from = socket.id;
     //  }
 
       emitMessage(remotePeerSocket, jsonMessage);

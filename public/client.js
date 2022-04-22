@@ -11,27 +11,31 @@ var client1;
     let clients;
     socket.onopen = () => {
         console.log('socket::open');
-        sendSocketMessage('start', { name: 'client' });
+        sendSocketMessage('start', null, { name: 'client' });
     };
-    socket.onmessage = async ({ data }) => {
+    socket.onmessage = async (evt) => {
         try {
-            const jsonMessage = JSON.parse(data);
+            const jsonMessage = JSON.parse(evt.data);
+            const action = jsonMessage.action;
+            const from = jsonMessage.from;
+            const to = jsonMessage.to;
+            const data = jsonMessage.data;
             console.log('message', jsonMessage);
             switch (jsonMessage.action) {
                 case 'start':
-                    console.log('start', jsonMessage.id);
-                    myID = jsonMessage.id;
+                    console.log('start', data.id);
+                    myID = data.id;
                     clients = jsonMessage.clients;
-                    document.getElementById('localId').innerHTML = jsonMessage.id;
+                    document.getElementById('localId').innerHTML = data.id;
                     console.log(clients);
                     break;
                 case 'offer':
-                    sharingID = jsonMessage.data.from;
+                    sharingID = jsonMessage.from;
                     await initializePeerConnection(null);
                     await peerConnection.setRemoteDescription(new RTCSessionDescription(jsonMessage.data.offer));
                     const answer = await peerConnection.createAnswer();
                     await peerConnection.setLocalDescription(answer);
-                    sendSocketMessage('answer', { to: sharingID, answer });
+                    sendSocketMessage('answer', sharingID, { answer });
                     break;
                 case 'answer':
                     await peerConnection.setRemoteDescription(new RTCSessionDescription(jsonMessage.data.answer));
@@ -57,23 +61,27 @@ var client1;
         console.log('socket::close');
         stop();
     };
-    const sendSocketMessage = (action, data) => {
-        const message = { action, data };
+    function sendSocketMessage(action, to, data) {
+        const message = { action, data, to };
         socket.send(JSON.stringify(message));
-    };
+    }
+    ;
     function askOffer() {
         if (myID)
-            sendSocketMessage('ask-offer', null);
+            sendSocketMessage('ask-offer', null, null);
         else
             console.log(' no my id ');
     }
     client1.askOffer = askOffer;
     const hangup = () => socket.close();
     function stop() {
-        for (const sender of peerConnection.getSenders()) {
-            sender.track.stop();
+        sendSocketMessage('stop', sharingID, null);
+        peerConnection.getReceivers();
+        for (const sender of peerConnection.getReceivers()) {
+            console.log(sender);
+            if (sender.track)
+                sender.track.stop();
         }
-        sendSocketMessage('stop', { to: sharingID });
         dataChannel.close();
         peerConnection.close();
         peerConnection = null;
