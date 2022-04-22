@@ -77,13 +77,10 @@ var client1;
     client1.askOffer = askOffer;
     const hangup = () => socket.close();
     client1.stop = () => {
-        /*   for (const track of localVideo.srcObject.getTracks()) {
-               console.log('stop track', track);
-               track.stop();
-           }*/
         for (const sender of peerConnection.getSenders()) {
             sender.track.stop();
         }
+        sendSocketMessage('stop', { to: remoteId });
         dataChannel.close();
         peerConnection.close();
         // @ts-ignore
