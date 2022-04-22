@@ -22,16 +22,14 @@ socket.onopen = () => {
 socket.onmessage = async ({ data }) => {
   try {
     const jsonMessage = JSON.parse(data);
-    console.log('action', jsonMessage.action);
+    console.log('message', jsonMessage);
     switch (jsonMessage.action) {
       case 'start':
         console.log('start', jsonMessage.id);
         callButton.disabled = false;
         myID = jsonMessage.id;
-
         clients = jsonMessage.clients;
-        const main = clients.find(v => v.main)
-          if(main) mainID = main.id;
+        if(isMain) sendSocketMessage('sharing');
         document.getElementById('localId').innerHTML = jsonMessage.id;
         break;
       case 'offer':
@@ -87,7 +85,8 @@ const start = async () => {
      localVideo.srcObject = localMediaStream;
     }// await getLocalMediaStream();
     console.log('localMediaStream ', localMediaStream);
-    sendSocketMessage('start', {main: isMain});
+    sendSocketMessage('start', {name: 'Shared'});
+
   } catch (error) {
     console.error('failed to start stream', error);
   }

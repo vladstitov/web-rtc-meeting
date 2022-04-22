@@ -31,7 +31,7 @@ wss.on('connection', (socket) => {
   console.log('new connection');
 
   socket.on('message', (data) => {
-    console.log('socket::message data=%s', data);
+  ////   console.log('socket::message data=%s', data);
 
     try {
       const jsonMessage = JSON.parse(data);
@@ -51,29 +51,23 @@ const handleJsonMessage = (socket, jsonMessage) => {
   switch (jsonMessage.action) {
     case 'start':
       socket.id = Math.round(Math.random() * 100)  + '';
-      socket.main = data.main;
-      const clients = getClients().map((client => {return {id: client.id, main: client.main}}));
-      emitMessage(socket, { action: 'start', id:socket.id,  clients});
+
+      const clients = getClients().map((client => {return {id: client.id, sharing: client.sharing}}));
+      emitMessage(socket, { action: 'start', id: socket.id,  clients});
       for(let str in wss.clients) {
         const sock = wss.clients[str];
-        if(sock !== socket) emitMessage(socket, { action: 'connected', client_id: socket.id,  clients});
+        if(sock !== socket) emitMessage(socket, { action: 'clients',  clients});
       }
       break;
+    case 'sharing':
+      setSharing(socket);
+      break;
     case 'ask-offer':
-      const clients2 = getClients();
-      const mains = clients2.filter(v => !!v.main);
-     if(mains.length !== 1) {
-        const out = mains.map(client => {return {id: client.id, main: client.main}})
-        emitMessage(socket, { action: 'error-send-offer', data: out });
-      } else {
-        const to = jsonMessage.data.to;
-        emitMessage(mains[0], { action: 'send-offer', to});
-      }
+      askOffer(socket)
       break
     default: 
       console.log('remote', jsonMessage.data.remoteId);
       if (!jsonMessage.data.remoteId) return;
-
       const remotePeerSocket = getSocketById(jsonMessage.data.remoteId);
 
       if (!remotePeerSocket) {
@@ -90,18 +84,39 @@ const handleJsonMessage = (socket, jsonMessage) => {
   }
 };
 
+function setSharing(socket) {
+  const sharing = getSharing();
+  if(sharing && sharing.id !== socket.id) {
+    emitMessage(socket, { action: 'sharing', error: sharing.id});
+  } else {
+    socket.sharing = true;
+    emitMessage(socket, { action: 'sharing', success: socket.id});
+  }
+}
+
+function askOffer(socket) {
+  const sharing = getSharing();
+  if(!sharing) {
+    emitMessage(socket, { action: 'ask-offer', error: 'no-sharing'});
+  } else {
+    emitMessage(sharing, { action: 'send-offer', to: socket.id});
+  }
+}
+
 const emitMessage = (socket, jsonMessage) => {
   if (socket.readyState === OPEN) {
     socket.send(JSON.stringify(jsonMessage));
-  }
+  }else console.log('ERROR SOCKET CLOSED')
 };
+
+
+const getSharing = () =>  Array.from(wss.clients).find((client => client.sharing));
 
 
 const getSocketById = (socketId) =>
   Array.from(wss.clients).find((client => client.id === socketId));
 
 const getClients = () => Array.from(wss.clients);
-
 wsServer.listen(8888);
 console.log('app server listening on port 3000');
 console.log('wss server listening on port 8888');
