@@ -1,6 +1,13 @@
 var client1;
 (function (client1) {
     const remoteVideo = document.getElementById('remoteVideo');
+    remoteVideo.addEventListener('mousemove', function (evt) {
+        console.log(evt);
+        sendSocketMessage('mouse', null, { x: evt.clientX, y: evt.clientY });
+    });
+    remoteVideo.addEventListener("mouseup", function () {
+        sendSocketMessage('click', null, null);
+    });
     const remoteMediaStream = new MediaStream();
     const ar = window.location.host.split(':');
     const socket = new WebSocket('wss://' + ar[0] + ':8888');

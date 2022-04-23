@@ -3,7 +3,14 @@ const { createServer } = require('https');
 const { readFileSync } = require('fs');
 const { nanoid } = require('nanoid');
 const { resolve } = require('path');
+const robot = require("robotjs");
 const { WebSocketServer, OPEN } = require('ws');
+
+robot.setMouseDelay(2);
+
+const screenSize = robot.getScreenSize();
+const height = (screenSize.height / 2) - 10;
+const width = screenSize.width;
 
 const app = express();
 
@@ -53,6 +60,11 @@ const handleJsonMessage = (socket, jsonMessage) => {
   const to = jsonMessage.to;
 
   switch (action) {
+    case 'mouse':
+      robot.moveMouse(data.x, data.y);
+          break
+    case 'click':
+      robot.mouseClick();
     case 'start':
       socket.id = Math.round(Math.random() * 10000)  + '';
       const clients = getClients().map((client => {return {id: client.id, sharing: client.sharing}}));
