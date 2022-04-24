@@ -1,13 +1,106 @@
 namespace client1 {
-    const remoteVideo = document.getElementById('remoteVideo');
 
-    remoteVideo.addEventListener('mousemove', function (evt) {
+    const input  = document.getElementById('Input');
+
+    input.addEventListener('keydown', function (evt) {
+        console.log(evt.code);
+        console.log(evt.key.toLowerCase());
+       // console.log(value.toLowerCase());
+        if(evt.key === 'Enter') {
+            // @ts-ignore
+            const value = input.value;  input.value = '';
+            console.log(value.toLowerCase());
+
+            sendSocketMessage('com', null, value);
+        }
+
+
+    })
+
+
+    const remoteVideo = document.getElementById('remoteVideo');
+    const content = document.getElementById('Content');
+
+    let isShift
+    let isCtr;
+    content.addEventListener('click', function (evt) {
+        /*  console.log('DOWN');
+          console.log(evt.code);
+          console.log(evt.key)*/
+        console.log('click')
+        sendSocketMessage('com', null, 'C');
+    });
+
+  content.addEventListener('mousedown', function (evt) {
+      sendSocketMessage('com', null, 'D');
+    });
+
+    content.addEventListener('mouseup', function (evt) {
+        sendSocketMessage('com', null, 'U');
+    });
+    content.addEventListener('keydown', function (evt) {
+      /*  console.log('DOWN');
+        console.log(evt.code);
+        console.log(evt.key)*/
+
+        if(evt.key !== 'Shift') {
+            console.log(evt);
+        }
+
+        switch (evt.key){
+            case'Shift':
+               if(!isShift) sendSocketMessage('com', null, 'S');
+                isShift = true;
+                break;
+            case'Control':
+               if(!isCtr) sendSocketMessage('com', null, 'T');
+                isCtr = true;
+                break;
+        }
+    });
+
+    const specialChars = {space: ' ', comma: ',',dot:'.', quote:"'", section:'`', semicolon: ';', slash: '/', backspace: 'B',
+        'square bracket open':'[', 'square bracket close': ']', 'forward slash':'/'
+    };
+
+    content.addEventListener('keyup', function (evt) {
+        console.log('UP')
         console.log(evt);
-        sendSocketMessage('mouse', null, {x:evt.clientX, y: evt.clientY});
-    })
-    remoteVideo.addEventListener("mouseup", function (){
-        sendSocketMessage('click', null, null);
-    })
+        const key = evt.key.toLowerCase()
+        console.log(key);
+        switch (key){
+            case'shift':
+                isShift = false;
+                sendSocketMessage('com', null, 'I');
+                break;
+            case'control':
+                isCtr = false;
+                sendSocketMessage('com', null, 'L');
+            case'enter':
+                isCtr = false;
+                sendSocketMessage('com', null, 'E');
+                break;
+            case'backspace':
+                isCtr = false;
+                sendSocketMessage('com', null, 'B');
+                break;
+            default:
+                sendSocketMessage('com', null, key);
+                break
+
+        }
+
+    });
+
+   remoteVideo.addEventListener('mousemove', function (evt) {
+        console.log(evt);
+        let x = Math.round(evt.movementX);
+        let y = Math.round(evt.movementY);
+       if(x>100)x = 100;
+       if(y>100) y = 100;
+        sendSocketMessage('com', null, x+','+y);
+    });
+
 
     const remoteMediaStream = new MediaStream();
 

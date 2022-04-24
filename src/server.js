@@ -3,14 +3,53 @@ const { createServer } = require('https');
 const { readFileSync } = require('fs');
 const { nanoid } = require('nanoid');
 const { resolve } = require('path');
-const robot = require("robotjs");
+
+const  {SerialPort}= require('serialport');
+
+
+
 const { WebSocketServer, OPEN } = require('ws');
 
-robot.setMouseDelay(2);
 
-const screenSize = robot.getScreenSize();
-const height = (screenSize.height / 2) - 10;
-const width = screenSize.width;
+SerialPort.list().then(res => {
+  console.log('list', res);
+
+  // serialPort.write('ROBOT POWER ON')
+});
+
+const serialPort= new SerialPort( {
+  path:'COM3',
+  baudRate: 9600
+});
+
+
+serialPort.on("open", function () {
+  console.log('serial open');
+setTimeout(() => {
+    sendSerial('b');
+  }, 1000);
+
+})
+
+let serialData = ''
+
+serialPort.on('data', function(data) {
+serialData+=data;
+if(serialData.slice(-2) === '\r\n') {
+  console.log('on data ' + serialData.toString().slice(0, -2));
+}
+});
+
+serialPort.on('close', function () {
+  console.log('serial closed ');
+});
+serialPort.on('error', function (err) {
+  console.log('serial error ' , err);
+});
+function sendSerial(str) {
+  console.log(': ' + str);
+  serialPort.write(str + '\n');
+}
 
 const app = express();
 
@@ -60,11 +99,9 @@ const handleJsonMessage = (socket, jsonMessage) => {
   const to = jsonMessage.to;
 
   switch (action) {
-    case 'mouse':
-      robot.moveMouse(data.x, data.y);
-          break
-    case 'click':
-      robot.mouseClick();
+    case 'com':
+      sendSerial(data);
+          break;
     case 'start':
       socket.id = Math.round(Math.random() * 10000)  + '';
       const clients = getClients().map((client => {return {id: client.id, sharing: client.sharing}}));

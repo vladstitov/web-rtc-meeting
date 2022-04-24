@@ -5,12 +5,16 @@
   </head>
   <body>
   <b><span id="localId"/></b>
+  <input id="Input">
   <button id="askOfferButton" onclick="client1.askOffer();">Start</button>
   <button id="stopButton" onclick="client1.stop();">Stop</button>
 
+
   <hr/>
   <h3>Remote Video</h3>
-    <video id="remoteVideo" width="1366" height="720" autoplay></video>
+  <div contenteditable="true" id="Content" style="width: 1920px; height: 1080px">
+    <video id="remoteVideo" width="1920" height="1080" autoplay></video>
+  </div>
     <script src="./client.js"></script>
   </body>
 </html>
